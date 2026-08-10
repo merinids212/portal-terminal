@@ -1,0 +1,12 @@
+.expand
+.why
+cache.json
+rank_index.pkl
+.DS_Store
+node_modules/
+.wrangler/
+stopwords.local
+__pycache__/
+*.pyc
+CLAUDE.md
+.claude/

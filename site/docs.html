@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>portal docs</title>
+<meta name="description" content="portal documentation — commands, picker keys, recipes, configuration.">
+<meta property="og:title" content="portal docs">
+<meta property="og:image" content="https://portal.cybercorpresearch.com/og.png">
+<meta name="theme-color" content="#0f0e0e">
+<style>
+  @font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;
+    src:url('/fonts/plex-mono-400.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:swap;
+    src:url('/fonts/plex-mono-600.woff2') format('woff2')}
+  /* ── portal tokens ── keep byte-identical with index.html ── */
+  :root{
+    /* warm neutrals, not greys: one hue (~35°) at 5-10% chroma, so the page reads as
+       aged paper under a bulb rather than a screenshot of a spreadsheet. Never pure #fff. */
+    --bg:#0f0e0e; --panel:#191614; --ink:#f1ebe0; --dim:#a79e92; --faint:#837a6e;
+    --line:#282320; --border:#3a342f; --hi:#fff9f0; --prose:#d6cec2;
+    --claude:#d97757;   /* the Claude mark — the one place a real color is spent */
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font:14px/1.7 'IBM Plex Mono',ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    -webkit-font-smoothing:antialiased}
+  a{color:var(--hi); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:680px; margin:0 auto; padding:0 20px}
+
+  nav{display:flex; align-items:baseline; gap:14px; padding:22px 0 8px}
+  .logo{font-weight:600; letter-spacing:.04em; color:var(--hi)}
+  nav .crumb{color:var(--faint)} nav .sp{margin-left:auto}
+  nav a.q{color:var(--dim); font-size:12.5px}
+  nav a.q:hover{color:var(--hi)}
+
+  h2{font-size:13px; font-weight:400; color:var(--dim); letter-spacing:.08em;
+    margin:52px 0 14px; padding-top:16px; border-top:1px solid var(--line)}
+  h2::before{content:"── "; color:var(--faint)} h2::after{content:" ──"; color:var(--faint)}
+  p{margin:12px 0; color:var(--prose); max-width:62ch}
+  p b, li b{color:var(--hi); font-weight:400}
+  /* inline code reads as a chip, so a command inside a sentence is scannable
+     without being mistaken for emphasis */
+  code{color:var(--hi); background:rgba(255,244,228,.07); border:1px solid var(--line);
+    border-radius:3px; padding:.5px 5px; font-size:.92em; white-space:nowrap}
+  /* chips stay whole — a hyphen inside one is not a line-break opportunity */
+  .rcp code, code.long{white-space:normal; overflow-wrap:anywhere}
+  pre{margin:14px 0; padding:12px 14px; border:1px solid var(--border); background:var(--panel);
+    font:inherit; font-size:13px; line-height:1.7; white-space:pre; overflow-x:auto; color:var(--dim)}
+  pre code{background:none; border:0; padding:0; font-size:inherit}
+  pre .p{color:var(--hi)} pre .i{color:var(--ink)} pre .ok{color:var(--hi)}
+  pre .w{color:var(--ink); font-weight:600}
+  .cmd-title{color:var(--hi); margin:30px 0 4px; scroll-margin-top:18px; font-size:14px}
+  .cmd-title span{color:var(--dim); font-size:13px}
+  /* agent marks wear their real colors; portal's own chrome never does */
+  .lg{width:15px;height:15px;vertical-align:-3px;flex:none}
+  .lgc{color:var(--claude)} .lgx{color:var(--ink)}
+  .agents{display:inline-flex;gap:8px;align-items:center;vertical-align:-3px;margin-left:4px}
+  table{border-collapse:collapse; margin:14px 0; width:100%}
+  td{padding:7px 18px 7px 0; vertical-align:top; font-size:13.5px; border-top:1px solid var(--line)}
+  tr:first-child td{border-top:0}
+  /* the key column: each key wears the same chip as inline code, so keys and commands
+     read as one vocabulary. width:1% keeps the column as narrow as its content. */
+  td:first-child{color:var(--hi); white-space:nowrap; width:1%}
+  .keys td:first-child{padding-right:14px}
+  .keys code{min-width:34px; text-align:center; display:inline-block}
+  td:last-child{color:var(--prose)}
+  .rcp{margin:18px 0; color:var(--prose)}
+  .rcp b{color:var(--hi); font-weight:400}
+  .rcp code{display:inline-block; margin-top:4px; white-space:normal; overflow-wrap:anywhere;
+    line-height:1.7; color:var(--ink)}
+  footer{border-top:1px solid var(--line); margin-top:56px; padding:24px 0 56px;
+    text-align:center; color:var(--faint); font-size:12px}
+  footer a{color:var(--dim)}
+  @media (max-width:640px){
+    body{font-size:13px}
+    pre{font-size:11.5px}
+    h2{margin-top:36px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav>
+  <a class="logo" href="/">portal</a><span class="crumb">/ docs</span>
+  <span class="sp"></span>
+  <a class="q" href="#picker">picker</a>
+  <a class="q" href="#codex">codex</a>
+  <a class="q" href="#fleet">fleet</a>
+  <a class="q" href="#commands">commands</a>
+  <a class="q" href="#recipes">recipes</a>
+  <a class="q" href="https://github.com/merinids212/portal-terminal">github</a>
+</nav>
+
+<h2 id="install">install</h2>
+<pre><span class="p">❯</span> <span class="i">curl -fsSL https://portal.cybercorpresearch.com/install.sh | bash</span></pre>
+<p>macOS or Linux · zsh · python3 ≥3.8 · fzf ≥0.38, which the installer adds via
+brew/apt/dnf/pacman if you don't have it. One <code>source</code> line goes into
+<code>~/.zshrc</code>; open a new terminal and run <code>portal</code>.
+<a href="#codex">Codex</a> sessions are picked up automatically when <code>~/.codex</code> exists.</p>
+
+<h2 id="picker">the picker</h2>
+<p><code>portal</code> lists every past session, newest first. Type and it re-ranks from the first
+keystroke — BM25 over titles and your prompts, blended with recency, offline, no model. Rows read
+<b>time · project · title</b>; each project keeps one stable color so you can find it without
+reading.</p>
+<table class="keys">
+  <tr><td><code>type</code></td><td>re-rank live (empty = browse by recency)</td></tr>
+  <tr><td><code>↵</code></td><td>cd to the session's folder and resume it <em>here</em></td></tr>
+  <tr><td><code>⇥</code></td><td>mark several — then <code>↵</code> sends each to its own shell (<a href="#fleet">fleet</a>)</td></tr>
+  <tr><td><code>^O</code></td><td>send the selection to their own shells, even a single one</td></tr>
+  <tr><td><code>^N</code></td><td>start a fresh session in that folder</td></tr>
+  <tr><td><code>^Y</code></td><td>copy the launch command instead</td></tr>
+  <tr><td><code>^E</code></td><td>reveal collapsed older versions</td></tr>
+  <tr><td><code>^/</code></td><td>toggle the preview pane</td></tr>
+  <tr><td><code>^R</code></td><td>rescan for sessions started since the picker opened</td></tr>
+</table>
+<p>Row markers: <code>●</code> being written right now · <code>+N</code> near-duplicate reruns
+collapsed underneath · <code>⌁</code> folder has moved (<code>↵</code> offers to relink).</p>
+<p>The preview pane carries the folder, topic chips, the session's arc (first ask → last thing
+touched), files edited, commits made during the session, related threads in other folders, an
+activity sparkline, and the <a href="#model">model</a> that ran it.</p>
+
+<h2 id="codex">both agents — Claude + Codex<span class="agents"><svg class="lg lgc" viewBox="0 0 100 100" aria-label="Claude"><g stroke="currentColor" stroke-width="8" stroke-linecap="round"><line x1="50" y1="50" x2="50" y2="8"/><line x1="50" y1="50" x2="71" y2="14"/><line x1="50" y1="50" x2="86" y2="29"/><line x1="50" y1="50" x2="92" y2="50"/><line x1="50" y1="50" x2="86" y2="71"/><line x1="50" y1="50" x2="71" y2="86"/><line x1="50" y1="50" x2="50" y2="92"/><line x1="50" y1="50" x2="29" y2="86"/><line x1="50" y1="50" x2="14" y2="71"/><line x1="50" y1="50" x2="8" y2="50"/><line x1="50" y1="50" x2="14" y2="29"/><line x1="50" y1="50" x2="29" y2="14"/></g></svg><svg class="lg lgx" viewBox="0 0 100 100" aria-label="Codex"><g fill="none" stroke="currentColor" stroke-width="7"><g transform="translate(50 50)"><ellipse rx="36" ry="15"/><ellipse rx="36" ry="15" transform="rotate(60)"/><ellipse rx="36" ry="15" transform="rotate(120)"/></g></g></svg></span></h2>
+<p>Portal indexes Claude Code transcripts (<code>~/.claude/projects</code>) and OpenAI Codex
+rollouts (<code>~/.codex/sessions</code>) into one list. Codex files are read the same bounded way:
+folder, your real prompts (its injected context turns are dropped), model, and token totals —
+exact, since Codex reports cumulative usage.</p>
+<pre>  <span class="ok">◇</span>  5h  search   optimize-ranking-heuristics   <span class="p">codex</span>
+<span class="p">preview →</span> codex · GPT-5 · 019f7b54 · ~340k tok</pre>
+<p>Every row wears its agent's mark — Claude in its own coral, Codex in mono — and Codex rows are
+tagged <code>codex</code>. They flow through search, <a href="#heavy">heavy</a>,
+<a href="#grep">grep</a>, and <code>ls --json</code> like any other row. <code>↵</code> resumes
+them with <code>codex resume &lt;id&gt;</code> instead of <code>claude --resume</code>. Nothing to
+configure.</p>
+
+<h2 id="fleet">a fleet — send off to many shells</h2>
+<p>A plain <code>↵</code> jumps into one session in the current shell, same as always. But mark
+several with <code>⇥</code> and <code>↵</code> sends each into <b>its own shell</b> — on macOS +
+<a href="https://ghostty.org">Ghostty</a> a real window per agent, colored by that project's
+<a href="#colors">theme</a>; inside <code>tmux</code>, a window per agent; elsewhere it prints the
+commands. <code>^O</code> does the same for the current pick even if it's just one.</p>
+<pre><span class="p">❯</span> <span class="i">portal watch</span>
+<span class="p">❯ portal</span> <span class="i">watch</span>   ◇ 4 live<span class="p"> · </span>2 waiting on you
+
+<span class="p">── needs you ──────────────────────────────────────────────────</span>
+<span class="ok">◇</span> ✳ sacred-freq  waiting  test-selector-thoroughly              32s   19M
+<span class="ok">◇</span> ✳ atlas        waiting  character-design-tools                13s   28M
+<span class="p">── active ─────────────────────────────────────────────────────</span>
+<span class="ok">⠙</span> ✳ portal       working  fleet cockpit for agents   Bash pytest  2s  4.2M
+<span class="p">•</span> ✳ nycc         thinking chrome-process-debug                   3s  808k</pre>
+<p><code>portal watch</code> is the picker, pointed at everything running right now — the same
+frame, keys, and preview card as <code>portal</code>, but the rows are <b>live agents</b>,
+auto-refreshing in place. It reads transcripts, so it sees <b>every</b> live agent — whether
+portal launched it or not — and classifies each from the tail of its log:
+<code>working</code> (a tool is running), <code>thinking</code> (mid-turn),
+<code>waiting</code> (turn handed back — <b>needs you</b>), <code>idle</code>. Type to filter
+the fleet · <code>↵</code> jumps <em>into</em> the selected agent · <code>^O</code> sends it to
+its own window · <code>esc</code> exits. An <b>open tab is an open agent</b>: any folder with a
+running <code>claude</code>/<code>codex</code> process keeps its session on the board no matter
+how long it's been quiet — hours-idle tabs still show as waiting.</p>
+<p><b>What each agent is working on</b> comes in three tiers. Always: the session's own
+<b>title</b> — the task it's on (<code>fleet cockpit for agents</code>) — with the momentary
+<b>tool</b> as a dim detail (<code>Bash pytest</code>). With a model configured
+(<a href="#model">below</a>) that headline becomes an <b>agentic one-liner</b> —
+<em>"reran the eval, waiting on the score"</em> — read from the transcript, not the tool log.</p>
+<p>Set <code>PORTAL_NOTIFY=1</code> and, on macOS, the board posts a silent desktop notification
+(named to the project) when an agent starts waiting on you — so you can fan out a
+fleet, walk away, and get pulled back. Off by default; no sound.</p>
+<p>The classic full-screen board (no fzf needed) is still there: <code>--interval N</code> runs
+it at that refresh rate (default 2s) · <code>--once</code> renders a single frame and exits,
+for scripting.</p>
+
+<h2 id="model">plain-English status <span style="color:var(--dim)">— optional</span></h2>
+<p>By default the board shows the mechanical line — state, the session's title (the task), and the
+tool it's running. It's instant, free, and accurate, and it's what you get out of the box.</p>
+<p>If you'd rather have a sentence read from the conversation —
+<em>"reran the eval, fixing a failing color assertion"</em> — opt in with one env var:
+<code>PORTAL_MODEL=claude</code> (uses the <b>Claude Code</b> CLI) or <code>=codex</code> (the
+<b>Codex</b> CLI), or <code>PORTAL_MODEL_URL=http://localhost:11434/v1</code> for a local
+OpenAI-compatible model (Ollama, LM Studio — cheapest, no tokens). Summaries compute in the
+background, cache, and throttle to ~once/20s per agent, and the transcript is fed as
+<b>data, never instructions</b>.</p>
+
+<h2 id="colors">project colors — your Ghostty themes</h2>
+<p>Every project maps deterministically to one of Ghostty's own bundled themes — the same project
+always gets the same one. The board tints its row with a vivid, contrast-checked accent from that
+theme, and a <a href="#fleet">dispatched</a> window <em>is</em> that theme, so the color on the
+board and the window on screen are one thing. No random pastel wash; where Ghostty's themes aren't
+present it falls back to a muted hue-hash.</p>
+
+<h2 id="commands">commands</h2>
+
+<p class="cmd-title" id="go">portal go "…" <span>— jump without the picker</span></p>
+<pre><span class="p">❯</span> <span class="i">portal go "the webhook retry fix"</span>
+<span class="ok">◇ teleport</span> ~/code/acme/billing <span class="ok">(0.94)</span>
+▸ resume f4e9b2c1 — fix-webhook-retry-loop</pre>
+<p>Ranks headless. A confident match cds in and resumes; anything ambiguous opens the picker
+pre-filtered rather than guessing.</p>
+
+<p class="cmd-title" id="pull">portal pull "…" <span>— bring a session here</span></p>
+<pre><span class="p">❯</span> cd ~/code/acme/gateway
+<span class="p">❯</span> <span class="i">portal pull "auth refactor"</span>
+<span class="ok">◇ pulled</span> refactor-auth-middleware → here
+▸ resuming forked — original untouched</pre>
+<p>Copies the transcript into the current folder and resumes it with <code>--fork-session</code>.
+<code>--move</code> relocates instead of copying.</p>
+
+<p class="cmd-title" id="mv">portal mv &lt;src&gt; &lt;dst&gt; <span>— move a folder and its history</span></p>
+<pre><span class="p">❯</span> <span class="i">portal mv ~/code/acme/api ~/code/platform/api</span>
+<span class="ok">◇ moved folder</span> → ~/code/platform/api
+  <span class="ok">✓</span> session a1b2c3d8 migrated</pre>
+<p>Claude Code keys transcripts to the folder path, so a plain <code>mv</code> strands them. This
+moves the folder and migrates every session with it, rewriting paths and preserving timestamps.</p>
+
+<p class="cmd-title" id="doctor">portal doctor <span>— relink orphans</span></p>
+<pre><span class="p">❯</span> <span class="i">portal doctor</span>
+<span class="w">⌁</span> 7c3d91aa  research-vector-databases
+   was: ~/code/old/searchsvc
+   1) ~/code/acme/searchsvc
+   relink to [1]: <span class="i">1</span>
+   <span class="ok">✓ relinked</span></pre>
+<p>Finds sessions whose folder moved or vanished and suggests new homes by name. Set
+<code>PORTAL_CODE_ROOT</code> if your projects don't live under <code>~/Desktop/code</code>.
+<code>--list</code> shows candidates without prompting · <code>--sid &lt;sid8&gt;</code> relinks
+one session and prints its final folder on the last line, for scripting.</p>
+
+<p class="cmd-title" id="status">portal status <span>— what's unsaved</span></p>
+<pre><span class="p">❯</span> <span class="i">portal status</span>
+<span class="ok">●</span> billing     fix-webhook-retry-loop     live · dirty:2
+  api         refactor-auth-middleware   unpushed:3
+<span class="ok">◇</span> 24 folders · 3 dirty · 1 unpushed · 1 live</pre>
+<p>Git state across every session folder: uncommitted changes, unpushed commits, sessions being
+written right now. Clean idle folders stay quiet.</p>
+
+<p class="cmd-title" id="overlap">portal overlap <span>— two sessions, one file</span></p>
+<pre><span class="p">❯</span> <span class="i">portal overlap</span>
+<span class="w">⚠</span> api  middleware.ts  (critical)
+    a1b2c3d8  now  refactor-auth-middleware
+    e5f6a7b8  20m  hotfix-token-rotation</pre>
+<p>Flags recent sessions in the same repo that touched the same files — <b>critical</b> when both
+are still active.</p>
+
+<p class="cmd-title" id="heavy">portal heavy <span>— tokens spent</span></p>
+<pre><span class="p">❯</span> <span class="i">portal heavy</span>
+<span class="ok">54.3M tok</span>  antibes-ai     1w  Opus 4.x   research-nano-banana-pro
+<span class="ok">51.1M tok</span>  DC-Relations  46m  Opus 4.x   fix-athena-image-fidelity
+<span class="ok">◇</span> 88 session(s) with token data — approx (sampled)</pre>
+<p>Past sessions ranked by tokens burned — the retrospective form of deciding what to
+<code>/compact</code> before reopening one. Claude totals are sampled and marked <code>~</code>;
+Codex totals are exact. <code>--repo NAME</code> scopes to one project.</p>
+
+<p class="cmd-title" id="grep">portal grep <span>— search transcript text</span></p>
+<pre><span class="p">❯</span> <span class="i">portal grep -i "cloudflare worker"</span>
+code           now  portal-ascii-splash-upgrade
+    …a Cloudflare Worker serving 5 static files: the page, install.sh…
+<span class="ok">◇</span> 3 session(s) match 'cloudflare worker'</pre>
+<p>Searches inside the conversation, not just titles — Claude transcripts and Codex rollouts
+alike. <code>-i</code> case-insensitive · <code>-F</code> literal · <code>--repo NAME</code>
+scoped. Reads are bounded and capped per file, because transcripts get large.</p>
+
+<p class="cmd-title" id="model">model per session <span>— what ran this</span></p>
+<pre><span class="p">preview →</span> Opus 4.x · main · a1b2c3d8
+<span class="p">preview →</span> codex · GPT-5 · 019f7b54</pre>
+<p>The model is read from each transcript and kept: shown on the preview card, in
+<a href="#heavy">heavy</a>, and as <code>model</code> in <code>portal ls --json</code>.</p>
+
+<p class="cmd-title" id="ls">portal ls [--json] <span>— history as data</span></p>
+<p>Every session's id, folder, title, mtime, model, and orphan flag, as rows or JSON. Also
+<code>portal --here</code> (limit the picker to this directory), <code>portal update</code>, and
+<code>portal version</code>.</p>
+
+<h2 id="recipes">recipes</h2>
+<div class="rcp"><b>standup</b> — everything you touched in 24h, newest first:<br>
+<code>portal ls --json | jq -r '[.[] | select(now - .mtime &lt; 86400)] | sort_by(-.mtime)[] | "\(.project)  \(.title)"'</code></div>
+<div class="rcp"><b>shutdown guard</b> — one line in your logout hook:<br>
+<code>portal status | grep -q unpushed &amp;&amp; echo "don't close yet"</code></div>
+<div class="rcp"><b>orphan sweep</b> — after a reorg:<br>
+<code>portal ls --json | jq -r '.[] | select(.orphan) | .title'</code> then <code>portal doctor</code></div>
+
+<h2 id="configure">configure</h2>
+<p>Portal launches Claude with no extra flags. Set your own in <code>~/.zshrc</code>
+<b>above</b> the source line:</p>
+<pre><span class="i">PORTAL_FLAGS=(--dangerously-skip-permissions --chrome)</span>
+<span class="i">export PORTAL_CODE_ROOT=~/code</span>   <span class="p"># where doctor and fresh-dir suggestions look</span>
+<span class="i">export PORTAL_BANNER=compact</span>     <span class="p"># header: compact (default, one line) · full (ANSI-Shadow art) · off</span>
+<span class="i">export PORTAL_MODEL=claude</span>       <span class="p"># optional watch narration: claude · codex · a local URL (default: off)</span>
+<span class="i">export PORTAL_NOTIFY=1</span>            <span class="p"># silent desktop notify when an agent needs you (default: off)</span>
+<span class="i">export PORTAL_WATCH_WINDOW=45</span>     <span class="p"># quiet-minutes cutoff for sessions WITHOUT a running process (open tabs always show)</span>
+<span class="i">export PORTAL_NO_PROC=1</span>           <span class="p"># skip the ps+lsof open-process scan (constrained machines)</span></pre>
+<p>The header is a single line by default so the session list starts right at the top; set
+<code>PORTAL_BANNER=full</code> for the ANSI-Shadow <code>PORTAL</code> art (the same as this site), or
+<code>off</code> for none.
+Light and dark terminals are detected automatically; the picker is monochrome either way, apart
+from project colors and each agent's mark.</p>
+
+<h2 id="how">how it works</h2>
+<p><code>index.py</code> reads <code>~/.claude/projects/*/*.jsonl</code> — and
+<code>~/.codex/sessions</code> when it exists — pulling each session's folder, title, prompts,
+model, and usage out with bounded head+tail reads, then caching a compact index.
+<code>rank.py</code> is the search brain; fzf is a dumb renderer driven per keystroke via
+<code>change:reload</code>. Pure python + zsh + fzf, no dependencies, fully offline.</p>
+<p>Nothing is written back to your transcripts except by <code>mv</code>, <code>pull</code>, and
+<code>doctor</code>, which stream atomically and preserve timestamps.</p>
+
+<h2 id="uninstall">uninstall</h2>
+<pre><span class="p">❯</span> <span class="i">rm -rf ~/.claude/portal</span>   <span class="p"># then drop the source line from ~/.zshrc</span></pre>
+<p>Your transcripts in <code>~/.claude/projects</code> are never touched.</p>
+
+</div>
+<footer class="wrap">
+  <p>portal · <a href="/">home</a> · <a href="https://github.com/merinids212/portal-terminal">github</a> · <a href="https://hicham.io">hicham.io</a> · <a href="https://x.com/merinids">@merinids</a></p>
+</footer>
+</body>
+</html>

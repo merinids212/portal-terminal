@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>portal — teleport into your Claude Code + Codex sessions</title>
+<meta name="description" content="A session picker for Claude Code and Codex. Search every past session, rank by token cost, grep transcripts, jump back in.">
+<meta property="og:title" content="portal — teleport into your Claude Code + Codex sessions">
+<meta property="og:description" content="A session picker for Claude Code and Codex. Search every past session, rank by token cost, grep transcripts, jump back in.">
+<meta property="og:image" content="https://portal.cybercorpresearch.com/og.png">
+<meta property="og:url" content="https://portal.cybercorpresearch.com">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://portal.cybercorpresearch.com/og.png">
+<meta name="theme-color" content="#0f0e0e">
+<style>
+  @font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;
+    src:url('/fonts/plex-mono-400.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;
+    src:url('/fonts/plex-mono-500.woff2') format('woff2')}
+  @font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:swap;
+    src:url('/fonts/plex-mono-600.woff2') format('woff2')}
+  /* ── portal tokens ── keep byte-identical with docs.html ── */
+  :root{
+    /* warm neutrals, not greys: one hue (~35°) at 5-10% chroma, so the page reads as
+       aged paper under a bulb rather than a screenshot of a spreadsheet. Never pure #fff. */
+    --bg:#0f0e0e; --panel:#191614; --ink:#f1ebe0; --dim:#a79e92; --faint:#837a6e;
+    --line:#282320; --border:#3a342f; --hi:#fff9f0; --prose:#d6cec2;
+    --claude:#d97757;   /* the Claude mark — the one place a real color is spent */
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:14.5px/1.6 'IBM Plex Mono',ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  .wrap{max-width:860px; margin:0 auto; padding:0 20px}
+  a{color:var(--hi); text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---- hero ---- */
+  header{padding:64px 0 20px; text-align:center}
+  pre.wordmark{
+    margin:0 auto; display:inline-block; text-align:left; font-size:clamp(7px,2.2vw,15px);
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; /* crisp block glyphs */
+    line-height:1.05; letter-spacing:0; white-space:pre;
+    background:linear-gradient(180deg,#fff9f0,#6b6259);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .tag{color:var(--dim); margin:14px 0 0; font-size:15px}
+  .tag b{color:var(--ink); font-weight:400}
+  .sub{color:var(--faint); font-size:13px; margin-top:4px}
+
+  /* ---- install box ---- */
+  .install{margin:30px auto 8px; text-align:center}
+  .cmd{
+    display:flex; align-items:center; gap:12px; background:var(--panel);
+    border:1px solid var(--border); border-radius:0; padding:14px 16px;
+  }
+  .cmd .p{color:var(--hi)}
+  .cmd code{flex:1; color:var(--ink); overflow-x:auto; white-space:nowrap; font-size:14px}
+  .cmd code b{color:var(--hi); font-weight:400}
+  .copy{
+    background:transparent; border:1px solid var(--border); color:var(--dim);
+    border-radius:0; padding:6px 12px; cursor:pointer; font:inherit; font-size:12px;
+    transition:.15s; white-space:nowrap;
+  }
+  .copy:hover{color:var(--hi); border-color:var(--dim)}
+  .copy.ok{color:var(--hi); border-color:var(--hi)}
+  .req{color:var(--dim); font-size:12px; text-align:center; margin:12px 0 0}
+
+  /* ---- portal terminal emulation ---- */
+  .demo{margin:0 0 6px}
+  .win{position:relative; border:1px solid var(--border); background:var(--panel)}
+  .wlabel{position:absolute; top:-9px; left:16px; z-index:3; background:var(--bg);
+    padding:0 8px; font-size:12px; color:var(--dim);
+    max-width:calc(100% - 48px); overflow:hidden; white-space:nowrap; text-overflow:ellipsis}
+  .screen{position:relative; overflow:hidden}
+  /* drifting refresh sweep — the one motion cue, now colorless */
+  .screen::after{content:""; position:absolute; left:0; right:0; height:110px; z-index:2;
+    pointer-events:none; opacity:.5; top:-25%;
+    background:linear-gradient(180deg,transparent,rgba(255,240,220,.05) 55%,transparent);
+    animation:sweep 7s linear infinite}
+  @keyframes sweep{to{top:125%}}
+  .prompt{padding:11px 16px 5px; color:var(--dim); display:flex; align-items:baseline; gap:7px}
+  .prompt .qq{color:var(--ink)}
+  .prompt .cur{color:var(--hi); animation:blink 1.1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .pright{margin-left:auto; font-size:12px; color:var(--faint); display:flex; gap:12px}
+  /* fixed width + tabular digits so the animating match count never shifts the row */
+  #cnt{display:inline-block; width:52px; text-align:right; font-variant-numeric:tabular-nums}
+  .sem{color:var(--faint); opacity:0; transition:opacity .25s}
+  .fsep{margin:2px 16px 4px; border-top:1px solid var(--line)}
+  .split{display:grid; grid-template-columns:1.06fr 1fr; gap:0}
+  @media (max-width:640px){.split{grid-template-columns:1fr}.pv{display:none}}
+  .list{padding:4px 8px 12px; border-right:1px solid var(--line); min-height:238px}
+  .row{display:flex; gap:10px; padding:2.5px 8px; white-space:nowrap; font-size:13px; overflow:hidden}
+  .row.sel{background:rgba(255,244,228,.07); box-shadow:inset 2px 0 0 var(--hi)}
+  .row .rc{color:var(--hi); min-width:34px}
+  .row .rc.old{color:#5f584f}
+  .row .ty{width:64px; flex:none}
+  /* project column: a stable muted hue per project — this is UX, not branding. It's how
+     you spot "billing" in a 128-row list without reading it. hsl(h,30%,74%), matching
+     palette.pastel() in the app. */
+  .p-api{color:#a9bdd1}.p-billing{color:#d1c0a9}.p-search{color:#a9d1bd}
+  .p-infra{color:#b9a9d1}.p-mobile{color:#d1a9bd}.p-codex{color:#a9cad1}
+  .row .ti{color:var(--ink); overflow:hidden; text-overflow:ellipsis}
+  /* agent logos (Claude sunburst · Codex blossom) — the source of each session, and the
+     only place color is spent: each mark wears the color it wears in real life. */
+  .lg{flex:none;vertical-align:-2px}
+  .row .lg{width:13px;height:13px;margin-right:-2px}
+  .lgc{color:var(--claude)}                    /* Claude coral */
+  .lgx{color:var(--ink)}                       /* Codex mono */
+  .agents{display:inline-flex;gap:9px;align-items:center;vertical-align:-3px;margin-left:6px}
+  .agents .lg{width:19px;height:19px}
+  .row .cxtag{color:var(--dim);font-size:11px;margin-left:2px}
+
+  /* ---- feature strip: one line each, full copy lives in /docs ---- */
+  .feat{display:grid;grid-template-columns:1fr 1fr;gap:1px;margin:14px 0 0;
+    background:var(--border);border:1px solid var(--border)}
+  @media (max-width:640px){.feat{grid-template-columns:1fr}}
+  .fcard{display:block;background:var(--bg);padding:12px 15px;text-decoration:none;transition:.15s}
+  .fcard:hover{background:var(--panel);text-decoration:none}
+  .fcard h3{margin:0 0 3px;font-size:13.5px;font-weight:500;color:var(--hi)}
+  .fcard h3 code{font-size:12.5px;color:var(--hi)}
+  .fcard p{margin:0;font-size:12px;color:var(--dim);line-height:1.5}
+  .fcard p code{color:var(--ink)}
+  .pv{padding:10px 16px 12px; font-size:12.5px; line-height:1.55}
+  .pv .h{color:var(--hi)}
+  .pv .path{color:var(--dim); margin:1px 0 2px}
+  .pv .ch{color:var(--faint); margin:0 0 8px}
+  .pv .rule{color:var(--faint); margin:7px 0 3px}
+  .pv .k{color:var(--dim)} .pv .v{color:var(--ink)}
+  .pv .spark{background:linear-gradient(90deg,#fff9f0,#4c463e); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .pv .meta{color:var(--faint); margin-top:7px}
+  @media (prefers-reduced-motion: reduce){
+    .screen::after,.prompt .cur{animation:none}
+  }
+
+  /* ---- section labels ---- */
+  .plabel{color:var(--dim); font-size:12px; letter-spacing:.08em; margin:0 0 10px}
+  .slabel{text-align:center; margin:46px 0 16px}
+  .plabel::before,.plabel::after{content:"──"; color:var(--faint); margin:0 8px}
+  .plabel b{color:var(--hi); font-weight:400}
+  .hint{color:var(--faint); font-size:12px; text-align:center; margin:14px 0 0}
+  .hint b{color:var(--dim); font-weight:400}
+
+  /* ---- responsive ---- */
+  @media (max-width:640px){
+    body{font-size:13px}
+    header{padding:40px 0 12px}
+    .tag{font-size:13.5px} .sub{font-size:12px}
+    .install{margin-top:22px}
+    .cmd{padding:11px 12px; gap:8px} .cmd code{font-size:12.5px}
+    .sem{display:none}
+    .row{gap:8px; font-size:12.5px} .row .ty{width:52px}
+    .list{min-height:0}
+    .demo{margin:32px 0}
+  }
+  footer{border-top:1px solid var(--line); padding:26px 0 60px; text-align:center; color:var(--faint); font-size:12px}
+  footer a{color:var(--dim)}
+  .corner{position:fixed; top:12px; right:14px; z-index:100; background:transparent; border:0;
+    color:var(--faint); padding:8px; font:inherit; font-size:11.5px; text-decoration:none; opacity:.8}
+  .corner:hover{color:var(--hi); opacity:1; text-decoration:none}
+  @media (max-width:640px){
+    .corner .tl{display:none}
+    .corner svg{width:17px; height:17px; margin-right:0}
+  }
+</style>
+</head>
+<body>
+<a class="corner" href="https://github.com/merinids212/portal-terminal" aria-label="GitHub">
+  <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="currentColor" style="vertical-align:-2px;margin-right:6px"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg><span class="tl">GitHub</span></a>
+<a class="corner" style="right:112px" href="/docs">docs</a>
+<div class="wrap">
+
+  <header>
+<pre class="wordmark">██████╗  ██████╗ ██████╗ ████████╗ █████╗ ██╗
+██╔══██╗██╔═══██╗██╔══██╗╚══██╔══╝██╔══██╗██║
+██████╔╝██║   ██║██████╔╝   ██║   ███████║██║
+██╔═══╝ ██║   ██║██╔══██╗   ██║   ██╔══██║██║
+██║     ╚██████╔╝██║  ██║   ██║   ██║  ██║███████╗
+╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝</pre>
+    <p class="tag">a <b>session picker</b> for Claude Code + Codex<span class="agents"><svg class="lg lgc" viewBox="0 0 100 100" aria-label="Claude"><g stroke="currentColor" stroke-width="8" stroke-linecap="round"><line x1="50" y1="50" x2="50" y2="8"/><line x1="50" y1="50" x2="71" y2="14"/><line x1="50" y1="50" x2="86" y2="29"/><line x1="50" y1="50" x2="92" y2="50"/><line x1="50" y1="50" x2="86" y2="71"/><line x1="50" y1="50" x2="71" y2="86"/><line x1="50" y1="50" x2="50" y2="92"/><line x1="50" y1="50" x2="29" y2="86"/><line x1="50" y1="50" x2="14" y2="71"/><line x1="50" y1="50" x2="8" y2="50"/><line x1="50" y1="50" x2="14" y2="29"/><line x1="50" y1="50" x2="29" y2="14"/></g></svg><svg class="lg lgx" viewBox="0 0 100 100" aria-label="Codex"><g fill="none" stroke="currentColor" stroke-width="7"><g transform="translate(50 50)"><ellipse rx="36" ry="15"/><ellipse rx="36" ry="15" transform="rotate(60)"/><ellipse rx="36" ry="15" transform="rotate(120)"/></g></g></svg></span></p>
+    <p class="sub">search every past session · jump back in · rank by token cost · grep transcripts — one picker for both agents</p>
+
+    <div class="install">
+      <div class="cmd">
+        <span class="p">❯</span>
+        <code id="cmd">curl -fsSL <b>https://portal.cybercorpresearch.com/install.sh</b> | bash</code>
+        <button class="copy" id="copy" onclick="cp()">copy</button>
+      </div>
+      <p class="req">macOS / Linux · needs <a href="https://claude.com/claude-code">Claude Code</a> + zsh · installs <a href="https://github.com/junegunn/fzf">fzf</a>, wires ~/.zshrc · <a href="/docs#codex">Codex</a> picked up automatically when <code>~/.codex</code> exists</p>
+    </div>
+  </header>
+
+  <!-- portal, emulated live -->
+  <div class="plabel slabel">the picker — type <b>portal</b>, search as you type</div>
+  <div class="demo">
+    <div class="win">
+      <span class="wlabel" id="wlabel">128 sessions · 1 collapsed (^E) · type to search</span>
+      <div class="screen">
+        <div class="prompt"><span id="pg">❯</span><span class="qq" id="q"></span><span class="cur">▏</span>
+          <span class="pright"><span id="cnt">128/128</span><span class="sem" id="sem">semantic</span></span></div>
+        <div class="fsep"></div>
+        <div class="split">
+          <div class="list" id="rows"></div>
+          <div class="pv">
+            <div class="h" id="pvt">▸ refactor-auth-middleware</div>
+            <div class="path" id="pvp">~/code/acme/api</div>
+            <div class="ch" id="pvc">#jwt #tokens #middleware</div>
+            <div class="rule">── arc ─────────────</div>
+            <div><span class="k">↗</span> <span class="v" id="pva">research jwt refresh token rotation</span></div>
+            <div><span class="k">landed</span> <span class="v" id="pvl">edited src/auth/middleware.ts</span></div>
+            <div class="rule">── touched ─────────</div>
+            <div class="v" id="pvf">middleware.ts · tokens.ts · session.ts</div>
+            <div class="rule">── activity ────────</div>
+            <div><span class="v" id="pvact">2d · 12MB · ~4k msgs · ~900 tools</span></div>
+            <div class="spark" id="pvs">▁▃▅█▆▃▅▆██▅▃▅▆█▆▅▃▁▃▅▆▃▁</div>
+            <div class="meta" id="pvm">main · a1b2c3d8</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">type to re-rank · ↵ jump · ⇥ mark many · ^O own shells · ^N new here · ^Y copy · ^E older versions · ^R rescan · ^/ preview</p>
+
+  <div class="plabel slabel">what it does — <b>full docs →</b></div>
+  <div class="feat">
+    <a class="fcard" href="/docs#fleet" style="grid-column:1/-1"><h3><code>portal watch</code></h3><p>live board of every agent running now — which needs you, notified the moment one flips to waiting</p></a>
+    <a class="fcard" href="/docs#codex"><h3>◈ Claude + Codex</h3><p>one picker for both — Codex rollouts tagged, <code>↵</code> runs <code>codex resume</code></p></a>
+    <a class="fcard" href="/docs#heavy"><h3><code>portal heavy</code></h3><p>rank past sessions by tokens burned — what to <code>/compact</code> when you reopen</p></a>
+    <a class="fcard" href="/docs#grep"><h3><code>portal grep</code></h3><p>search <em>inside</em> transcripts, not just titles</p></a>
+    <a class="fcard" href="/docs#model"><h3>model per session</h3><p>Opus · Sonnet · GPT-5, on the preview card and in <code>ls --json</code></p></a>
+  </div>
+
+  <p class="hint" style="margin:26px 0 44px">
+    <a href="/docs">docs →</a>&nbsp;&nbsp;<span style="color:var(--faint)">watch · commands · teleport · heavy · grep · mv/pull/doctor · codex</span>
+  </p>
+
+</div>
+<footer class="wrap">
+  <p>portal · <a href="/docs">docs</a> · <a href="https://github.com/merinids212/portal-terminal">github</a> · <a href="https://hicham.io">hicham.io</a> · <a href="https://x.com/merinids">@merinids</a></p>
+</footer>
+
+<script>
+  function cp(){
+    var t="curl -fsSL https://portal.cybercorpresearch.com/install.sh | bash";
+    navigator.clipboard.writeText(t).then(function(){
+      var b=document.getElementById('copy'); b.textContent='copied ✓'; b.classList.add('ok');
+      setTimeout(function(){b.textContent='copy'; b.classList.remove('ok');},1600);
+    });
+  }
+
+  /* ---- live terminal emulation: portal types, ranks, previews ---- */
+  var CLAUDE_LG='<svg class="lg lgc" viewBox="0 0 100 100"><g stroke="currentColor" stroke-width="9" stroke-linecap="round"><line x1="50" y1="50" x2="50" y2="9"/><line x1="50" y1="50" x2="71" y2="15"/><line x1="50" y1="50" x2="85" y2="29"/><line x1="50" y1="50" x2="91" y2="50"/><line x1="50" y1="50" x2="85" y2="71"/><line x1="50" y1="50" x2="71" y2="85"/><line x1="50" y1="50" x2="50" y2="91"/><line x1="50" y1="50" x2="29" y2="85"/><line x1="50" y1="50" x2="15" y2="71"/><line x1="50" y1="50" x2="9" y2="50"/><line x1="50" y1="50" x2="15" y2="29"/><line x1="50" y1="50" x2="29" y2="15"/></g></svg>';
+  var CODEX_LG='<svg class="lg lgx" viewBox="0 0 100 100"><g fill="none" stroke="currentColor" stroke-width="8"><g transform="translate(50 50)"><ellipse rx="36" ry="15"/><ellipse rx="36" ry="15" transform="rotate(60)"/><ellipse rx="36" ry="15" transform="rotate(120)"/></g></g></svg>';
+  var AG=function(a){return a==='x'?CODEX_LG:CLAUDE_LG};
+  var BROWSE=[['2h','api','refactor-auth-middleware',0,'c'],['1d','billing','fix-webhook-retry-loop +1',0,'c'],
+              ['5h','codex','optimize-ranking-heuristics',0,'x'],['3d','search','research-vector-databases',1,'c'],
+              ['1w','infra','migrate-postgres-to-d1',1,'c']];
+  var SCENES=[
+   {q:'the auth refactor thing', n:4,
+    rows:[[99,'api','refactor-auth-middleware',0,'c'],[61,'billing','fix-webhook-retry-loop +1',0,'c'],
+          [22,'search','research-vector-databases',1,'c'],[14,'infra','migrate-postgres-to-d1',1,'c']],
+    why:'matched "auth · refactor" → refactor-auth-middleware · 99%',
+    pv:{t:'▸ refactor-auth-middleware',p:'~/code/acme/api',c:'#jwt #tokens #middleware',
+        a:'research jwt refresh token rotation',l:'edited src/auth/middleware.ts',
+        f:'middleware.ts · tokens.ts · session.ts',act:'2d · 12MB · ~4k msgs · ~4.1M tok',
+        s:'▁▃▅█▆▃▅▆██▅▃▅▆█▆▅▃▁▃▅▆▃▁',m:'Opus 4.x · main · a1b2c3d8'}},
+   {q:'webhook retry', n:3,
+    rows:[[99,'billing','fix-webhook-retry-loop +1',0,'c'],[41,'api','refactor-auth-middleware',0,'c'],
+          [18,'infra','migrate-postgres-to-d1',1,'c'],[9,'search','research-vector-databases',1,'c']],
+    why:'matched "webhook · retry" → fix-webhook-retry-loop · 99%',
+    pv:{t:'▸ fix-webhook-retry-loop',p:'~/code/acme/billing',c:'#stripe #queue #idempotency',
+        a:'debug duplicate charge on retry storm',l:'edited src/webhooks/retry.ts',
+        f:'retry.ts · queue.ts · stripe.ts',act:'6h · 3MB · ~1.1k msgs · ~1.4M tok',
+        s:'▁▁▃▅██▆▅▃▅▆█▅▃▁▁▂▃▅▃▂▁▁▁',m:'Sonnet 4.x · main · f4e9b2c1'}},
+   {q:'ranking heuristics', n:2,
+    rows:[[99,'codex','optimize-ranking-heuristics',0,'x'],[36,'api','refactor-auth-middleware',1,'c'],
+          [14,'search','research-vector-databases',1,'c'],[8,'infra','migrate-postgres-to-d1',1,'c']],
+    why:'matched "ranking · heuristics" → optimize-ranking-heuristics · codex · 99%',
+    pv:{t:'◇ optimize-ranking-heuristics',p:'~/code/acme/search',c:'#ranking #bm25 #latency',
+        a:'tune bm25 weights for the search path',l:'edited rank.py',
+        f:'rank.py · bench.md',act:'3h · 158KB · ~340k tok',
+        s:'▂▄▆█▆▄▂▃▅▆▅▃▂▁▂▄▅▃▂▁▁▂▁▁',m:'codex · GPT-5 · 019f7b54'}}];
+  var $=function(id){return document.getElementById(id)};
+  function renderRows(rows, searching){
+    var h='';
+    rows.forEach(function(r,i){
+      h+='<div class="row'+(searching&&i===0?' sel':'')+'">'
+        +'<span class="rc'+(r[3]?' old':'')+'">'+(searching?'▉'+r[0]:'▸ '+r[0])+'</span>'
+        +AG(r[4])
+        +'<span class="ty p-'+r[1]+'">'+r[1]+'</span><span class="ti">'+r[2]+'</span></div>';
+    });
+    $('rows').innerHTML=h;
+  }
+  function setPv(p){
+    $('pvt').textContent=p.t; $('pvp').textContent=p.p; $('pvc').textContent=p.c;
+    $('pva').textContent=p.a; $('pvl').textContent=p.l; $('pvf').textContent=p.f;
+    $('pvact').textContent=p.act; $('pvs').textContent=p.s; $('pvm').textContent=p.m;
+  }
+  function browseState(){
+    $('q').textContent=''; $('pg').textContent='❯'; $('sem').style.opacity=0;
+    $('cnt').textContent='128/128';
+    $('wlabel').textContent='128 sessions · 1 collapsed (^E) · type to search';
+    renderRows(BROWSE,false);
+  }
+  var reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduced){
+    var s0=SCENES[0]; $('q').textContent=s0.q; $('pg').textContent='◇';
+    $('sem').style.opacity=1; $('cnt').textContent=s0.n+'/128';
+    $('wlabel').textContent=s0.why; renderRows(s0.rows,true); setPv(s0.pv);
+  }else{
+    var si=0;
+    function typeScene(){
+      var sc=SCENES[si%SCENES.length], i=0;
+      $('pg').textContent='◇'; $('sem').style.opacity=1;
+      (function step(){
+        i++;
+        var prog=i/sc.q.length;
+        $('q').textContent=sc.q.slice(0,i);
+        $('cnt').textContent=Math.max(sc.n,Math.round(128*Math.pow(1-prog,2.4)))+'/128';
+        // instant re-rank like a real terminal: settle order after a few chars
+        var rows=(prog<0.28?BROWSE.map(function(r){return[r[0],r[1],r[2],r[3],r[4]]}):sc.rows.map(function(r,j){
+          return [Math.max(2,Math.round(r[0]*Math.min(1,prog+0.15))),r[1],r[2],r[3],r[4]];
+        }));
+        renderRows(rows, prog>=0.28);
+        if(prog>=0.55){ setPv(sc.pv); $('wlabel').textContent=sc.why; }
+        if(i<sc.q.length){ setTimeout(step, 55+Math.random()*65); }
+        else{
+          renderRows(sc.rows,true);
+          setTimeout(erase, 2600);
+        }
+      })();
+    }
+    function erase(){
+      var t=$('q').textContent;
+      (function back(){
+        t=t.slice(0,-1); $('q').textContent=t;
+        if(t.length){ setTimeout(back, 22); }
+        else{ browseState(); si++; setTimeout(typeScene, 1500); }
+      })();
+    }
+    browseState(); setTimeout(typeScene, 1600);
+  }
+</script>
+</body>
+</html>
